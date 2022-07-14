@@ -8,6 +8,13 @@ use discovery::discover_services;
 use kube::Client as KubeClient;
 use log::debug;
 use route53::{apply_changes, list_records};
+use tokio::{
+    select,
+    signal::{
+        self,
+        unix::{signal, SignalKind},
+    },
+};
 
 async fn reconciliation_loop(kube_client: &KubeClient, route53_client: &Route53Client) {
     let desired_records = discover_services(kube_client).await;
@@ -37,8 +44,20 @@ async fn main() {
 
     let kube_client = KubeClient::try_default().await.expect("create kube client");
 
+    let mut quit = signal(SignalKind::quit()).ok().unwrap();
+    let mut terminate = signal(SignalKind::terminate()).ok().unwrap();
+    let mut interrupt = signal(SignalKind::interrupt()).ok().unwrap();
+
     loop {
         reconciliation_loop(&kube_client, &route53_client).await;
-        tokio::time::sleep(Duration::from_secs(60)).await;
+
+        if select! {
+            _ = tokio::time::sleep(Duration::from_secs(60)) => false,
+            _ = quit.recv() => true,
+            _ = terminate.recv() => true,
+            _ = interrupt.recv() => true,
+        } {
+            break;
+        }
     }
 }
