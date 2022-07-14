@@ -36,6 +36,8 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 ##### Runtime
 FROM alpine:3.16.0 AS runtime 
 
+ENV AWS_DEFAULT_REGION=eu-central-1
+
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 VOLUME /data
