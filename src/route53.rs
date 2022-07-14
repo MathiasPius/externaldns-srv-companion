@@ -1,23 +1,10 @@
+use std::collections::HashMap;
+
 use aws_sdk_route53::{
-    error::ListHostedZonesError, model::ResourceRecordSet, types::SdkError, Client,
+    model::{Change, ChangeBatch, ResourceRecordSet},
+    Client,
 };
 use log::{debug, trace};
-
-pub async fn get_hosted_zone_by_hostname(
-    client: &Client,
-    hostname: &str,
-) -> Result<Option<String>, SdkError<ListHostedZonesError>> {
-    let hosted_zones = client.list_hosted_zones().send().await?;
-    for hosted_zone in hosted_zones.hosted_zones().unwrap_or_default() {
-        if let Some(name) = hosted_zone.name() {
-            if hostname.ends_with(name) {
-                return Ok(hosted_zone.id.clone());
-            }
-        }
-    }
-
-    Ok(None)
-}
 
 pub async fn list_records(client: &Client) -> Vec<ResourceRecordSet> {
     let hosted_zones = client.list_hosted_zones().send().await.unwrap();
@@ -69,4 +56,51 @@ pub async fn list_records(client: &Client) -> Vec<ResourceRecordSet> {
         hosted_zones.hosted_zones().unwrap_or_default().len()
     );
     all_records
+}
+
+pub async fn apply_changes(client: &Client, changes: Vec<Change>) {
+    let hosted_zones = client.list_hosted_zones().send().await.unwrap();
+    let hosted_zones = hosted_zones.hosted_zones().unwrap_or_default();
+
+    let get_hosted_zone_by_hostname = |hostname: &str| {
+        for hosted_zone in hosted_zones {
+            if let Some(name) = hosted_zone.name() {
+                if hostname.ends_with(name) {
+                    let id = hosted_zone.id.clone();
+                    debug!("looking up hosted zone by hostname ({hostname}) yielded {id:?}");
+                    return id;
+                }
+            }
+        }
+        debug!("no hosted zone found for hostname ({hostname})");
+        None
+    };
+
+    let mut batched_changes: HashMap<String, Vec<Change>> = HashMap::new();
+    for change in changes {
+        let hosted_zone =
+            get_hosted_zone_by_hostname(change.resource_record_set().unwrap().name().unwrap())
+                .unwrap();
+
+        batched_changes
+            .entry(hosted_zone)
+            .or_insert(vec![])
+            .push(change);
+    }
+
+    for (hosted_zone, changes) in batched_changes {
+        debug!(
+            "applying changes for {hosted_zone} containing {} batched changes",
+            changes.len()
+        );
+        client
+            .change_resource_record_sets()
+            .set_hosted_zone_id(Some(hosted_zone))
+            .set_change_batch(Some(
+                ChangeBatch::builder().set_changes(Some(changes)).build(),
+            ))
+            .send()
+            .await
+            .unwrap();
+    }
 }

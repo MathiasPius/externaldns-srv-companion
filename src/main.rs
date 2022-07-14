@@ -1,13 +1,34 @@
 mod discovery;
 mod route53;
 
-use aws_sdk_route53::{model::ResourceRecord, Client as Route53Client};
+use std::time::Duration;
+
+use aws_sdk_route53::Client as Route53Client;
 use discovery::discover_services;
 use kube::Client as KubeClient;
 use log::debug;
-use route53::list_records;
+use route53::{apply_changes, list_records};
 
-#[tokio::main]
+async fn reconciliation_loop(kube_client: &KubeClient, route53_client: &Route53Client) {
+    let desired_records = discover_services(kube_client).await;
+    let existing_records = list_records(route53_client).await;
+
+    let changes = desired_records
+        .into_iter()
+        .filter_map(|desired_record| {
+            debug!(
+                "checking if {record_name} already exists in any hosted zones.",
+                record_name = desired_record.record_name()
+            );
+
+            desired_record.reconcile_with(&existing_records)
+        })
+        .collect();
+
+    apply_changes(route53_client, changes).await;
+}
+
+#[tokio::main(flavor = "current_thread")]
 async fn main() {
     pretty_env_logger::init_timed();
 
@@ -16,34 +37,8 @@ async fn main() {
 
     let kube_client = KubeClient::try_default().await.expect("create kube client");
 
-    let desired_records = discover_services(&kube_client).await;
-    let existing_records = list_records(&route53_client).await;
-
-    for desired_record in desired_records {
-        debug!(
-            "checking if {record_name} already exists in any hosted zones.",
-            record_name = desired_record.record_name()
-        );
-
-        if let Some(existing_record) = existing_records
-            .iter()
-            .find(|existing| existing.name == Some(desired_record.record_name()))
-        {
-            if let Some(values) = existing_record.resource_records() {
-                if values
-                    .iter()
-                    .filter_map(ResourceRecord::value)
-                    .any(|value| value == desired_record.record_value())
-                {
-                    debug!("no value set necessary, already defined");
-                } else {
-                    println!("update: {:?}", existing_record.name().unwrap());
-
-                    
-                }
-            }
-        } else {
-            println!("create: {:?}", desired_record.record_name());
-        }
+    loop {
+        reconciliation_loop(&kube_client, &route53_client).await;
+        tokio::time::sleep(Duration::from_secs(60)).await;
     }
 }
