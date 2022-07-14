@@ -5,6 +5,7 @@ FROM rust:1.62.0-slim as builder
 
 WORKDIR /usr/src
 
+RUN apt update && apt-get install musl-tools -y
 # Create blank project
 RUN USER=root cargo new externaldns-srv-companion
 
