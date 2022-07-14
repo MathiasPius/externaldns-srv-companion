@@ -10,10 +10,7 @@ use log::debug;
 use route53::{apply_changes, list_records};
 use tokio::{
     select,
-    signal::{
-        self,
-        unix::{signal, SignalKind},
-    },
+    signal::unix::{signal, SignalKind},
 };
 
 async fn reconciliation_loop(kube_client: &KubeClient, route53_client: &Route53Client) {
