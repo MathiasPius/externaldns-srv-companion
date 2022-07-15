@@ -40,7 +40,4 @@ ENV AWS_DEFAULT_REGION=eu-central-1
 
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-VOLUME /data
-WORKDIR /data
-
 ENTRYPOINT ["/usr/local/bin/externaldns-srv-companion"]
