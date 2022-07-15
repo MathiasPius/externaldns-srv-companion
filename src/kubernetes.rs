@@ -1,6 +1,11 @@
 use aws_sdk_route53::model::{Change, ChangeAction, ResourceRecord, ResourceRecordSet, RrType};
+use futures::Stream;
 use k8s_openapi::api::core::v1::Service;
-use kube::{api::ListParams, Api, Client, Resource};
+use kube::{
+    api::ListParams,
+    runtime::watcher::{watcher, Error, Event},
+    Api, Client, Resource,
+};
 use log::debug;
 
 #[derive(Debug)]
@@ -58,6 +63,13 @@ impl ServiceRecord {
             .build()
     }
 
+    pub fn as_delete(&self) -> Change {
+        Change::builder()
+            .action(ChangeAction::Delete)
+            .resource_record_set(self.into())
+            .build()
+    }
+
     pub fn reconcile_with(&self, existing_records: &[ResourceRecordSet]) -> Option<Change> {
         let existing_record = existing_records
             .iter()
@@ -105,7 +117,7 @@ impl ServiceRecord {
     }
 }
 
-fn map_to_records(service: Service) -> Option<Vec<ServiceRecord>> {
+pub fn map_to_records(service: Service) -> Option<Vec<ServiceRecord>> {
     let annotations = service.meta().annotations.as_ref()?;
     let spec = service.spec.as_ref()?;
 
@@ -181,15 +193,18 @@ fn map_to_records(service: Service) -> Option<Vec<ServiceRecord>> {
     Some(srvs)
 }
 
-pub async fn discover_services(client: &Client) -> Vec<ServiceRecord> {
+pub fn watch(client: &Client) -> impl Stream<Item = Result<Event<Service>, Error>> {
+    let service_filter = ListParams::default();
+    let services = Api::<Service>::all(client.clone());
+
+    watcher(services, service_filter)
+}
+
+pub async fn get_all(client: &Client) -> Vec<Service> {
     let service_filter = ListParams::default();
 
     let services = Api::<Service>::all(client.clone());
     let svcs = services.list(&service_filter).await.unwrap();
 
     svcs.items
-        .into_iter()
-        .flat_map(map_to_records)
-        .flatten()
-        .collect()
 }

@@ -507,10 +507,11 @@ dependencies = [
 
 [[package]]
 name = "externaldns-srv-companion"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "aws-config",
  "aws-sdk-route53",
+ "futures",
  "k8s-openapi",
  "kube",
  "log",

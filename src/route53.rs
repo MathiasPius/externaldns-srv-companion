@@ -4,7 +4,7 @@ use aws_sdk_route53::{
     model::{Change, ChangeBatch, ResourceRecordSet},
     Client,
 };
-use log::{debug, trace};
+use log::{debug, error, trace};
 
 pub async fn list_records(client: &Client) -> Vec<ResourceRecordSet> {
     let hosted_zones = client.list_hosted_zones().send().await.unwrap();
@@ -78,14 +78,16 @@ pub async fn apply_changes(client: &Client, changes: Vec<Change>) {
 
     let mut batched_changes: HashMap<String, Vec<Change>> = HashMap::new();
     for change in changes {
-        let hosted_zone =
-            get_hosted_zone_by_hostname(change.resource_record_set().unwrap().name().unwrap())
-                .unwrap();
+        let hostname = change.resource_record_set().unwrap().name().unwrap();
 
-        batched_changes
-            .entry(hosted_zone)
-            .or_insert(vec![])
-            .push(change);
+        if let Some(hosted_zone) = get_hosted_zone_by_hostname(hostname) {
+            batched_changes
+                .entry(hosted_zone)
+                .or_insert(vec![])
+                .push(change);
+        } else {
+            error!("hosted zone for change {hostname} could not be found.");
+        }
     }
 
     for (hosted_zone, changes) in batched_changes {

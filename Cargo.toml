@@ -1,12 +1,13 @@
 [package]
 name = "externaldns-srv-companion"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 log = "0.4.17"
+futures = "0.3.17"
 pretty_env_logger = "0.4.0"
 aws-config = "0.15.0"
 aws-sdk-route53 = "0.15.0"
