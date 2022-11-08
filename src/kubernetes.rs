@@ -71,9 +71,13 @@ impl ServiceRecord {
     }
 
     pub fn reconcile_with(&self, existing_records: &[ResourceRecordSet]) -> Option<Change> {
-        let existing_record = existing_records
-            .iter()
-            .find(|existing| existing.name == Some(self.record_name()));
+        let existing_record = existing_records.iter().find(|existing| {
+            existing
+                .name
+                .as_ref()
+                .map(|name| name.trim_end_matches('.'))
+                == Some(&self.record_name())
+        });
 
         if let Some(existing_record) = existing_record {
             if let Some(values) = existing_record.resource_records() {
