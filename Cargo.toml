@@ -9,8 +9,8 @@ edition = "2021"
 log = "0.4.17"
 futures = "0.3.17"
 pretty_env_logger = "0.4.0"
-aws-config = "0.15.0"
-aws-sdk-route53 = "0.15.0"
-kube = { version = "0.74.0", default-features = false, features = ["client", "rustls-tls", "runtime", "derive"] }
-k8s-openapi = { version = "0.15.0", features = ["v1_24"] }
+aws-config = "0.51.0"
+aws-sdk-route53 = "0.21.0"
+kube = { version = "0.76.0", default-features = false, features = ["client", "rustls-tls", "runtime", "derive"] }
+k8s-openapi = { version = "0.16.0", features = ["v1_25"] }
 tokio = { version = "1", features = ["rt", "macros", "signal"] }
