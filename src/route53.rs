@@ -65,7 +65,7 @@ pub async fn apply_changes(client: &Client, changes: Vec<Change>) {
     let get_hosted_zone_by_hostname = |hostname: &str| {
         for hosted_zone in hosted_zones {
             if let Some(name) = hosted_zone.name() {
-                if hostname.ends_with(name) {
+                if hostname.ends_with(name.trim_end_matches('.')) {
                     let id = hosted_zone.id.clone();
                     debug!("looking up hosted zone by hostname ({hostname}) yielded {id:?}");
                     return id;
