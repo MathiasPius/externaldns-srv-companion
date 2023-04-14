@@ -1,4 +1,4 @@
-use aws_sdk_route53::model::{Change, ChangeAction, ResourceRecord, ResourceRecordSet, RrType};
+use aws_sdk_route53::types::{Change, ChangeAction, ResourceRecord, ResourceRecordSet, RrType};
 use futures::Stream;
 use k8s_openapi::api::core::v1::Service;
 use kube::{

@@ -2,7 +2,7 @@ mod kubernetes;
 mod route53;
 
 use aws_sdk_route53::{
-    model::{Change, ResourceRecordSet},
+    types::{Change, ResourceRecordSet},
     Client as Route53Client,
 };
 use futures::TryStreamExt;

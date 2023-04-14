@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use aws_sdk_route53::{
-    model::{Change, ChangeBatch, ResourceRecordSet},
+    types::{Change, ChangeBatch, ResourceRecordSet},
     Client,
 };
 use log::{debug, error, trace};
